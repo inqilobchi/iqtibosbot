@@ -15,7 +15,6 @@ if (!token) {
   process.exit(1);
 }
 const bot = new TelegramBot(token);
-const WEBHOOK_PATH = `/webhook/${token}`;
 const ADMINS = process.env.ADMINS ? process.env.ADMINS.split(',').map(s => s.trim()).map(Number) : [];
 
 const DEFAULT_SEND_TIME = "08:00";
