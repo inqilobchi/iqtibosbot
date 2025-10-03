@@ -1,19 +1,21 @@
 require('dotenv').config();
-
+const Fastify = require('fastify');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const cron = require('node-cron');
 const Canvas = require('canvas');
 const moment = require('moment-timezone');
-
+const fastify = Fastify({ logger: true });
 // ——— Sozlamalar ———
 
 const token = process.env.BOT_TOKEN;
+const WEBHOOK_PATH = process.env.WEBHOOK_PATH || `/webhook/${token}`;
 if (!token) {
   console.error("BOT_TOKEN .env faylida belgilanmagan!");
   process.exit(1);
 }
-
+const bot = new TelegramBot(token);
+const WEBHOOK_PATH = `/webhook/${token}`;
 const ADMINS = process.env.ADMINS ? process.env.ADMINS.split(',').map(s => s.trim()).map(Number) : [];
 
 const DEFAULT_SEND_TIME = "08:00";
@@ -64,7 +66,6 @@ function mandatoryChannelsKeyboard(channels) {
 
 // ——— Telegram bot ———
 
-const bot = new TelegramBot(token, { polling: true });
 
 let BOT_USERNAME = null;
 bot.getMe()
@@ -342,7 +343,7 @@ async function adminChannelsKeyboard() {
 }
 
 // ——— /start komandasi ———
-
+fastify.post(WEBHOOK_PATH, async (request, reply) => {
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
 
@@ -617,3 +618,18 @@ bot.onText(/\/settings/, async (msg) => {
     reply_markup: mainSettingsKeyboard(ADMINS.includes(chatId))
   });
 });
+    reply.code(200).send('OK');
+});
+
+// Serverni ishga tushiramiz
+const start = async () => {
+  try {
+    await fastify.listen({ port: 3000, host: '0.0.0.0' });
+    console.log(`Server http://localhost:3000 da ishlayapti`);
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+};
+
+start();
