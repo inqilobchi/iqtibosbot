@@ -8,13 +8,42 @@ const moment = require('moment-timezone');
 const fastify = Fastify({ logger: true });
 // ——— Sozlamalar ———
 
+
 const token = process.env.BOT_TOKEN;
-const WEBHOOK_PATH = process.env.WEBHOOK_PATH || `/webhook/${token}`;
-if (!token) {
-  console.error("BOT_TOKEN .env faylida belgilanmagan!");
-  process.exit(1);
-}
 const bot = new TelegramBot(token);
+
+const WEBHOOK_PATH = `/webhook/${token}`;
+const FULL_WEBHOOK_URL = `${process.env.PUBLIC_URL}${WEBHOOK_PATH}`;
+
+// Webhook endpoint
+fastify.post(WEBHOOK_PATH, (req, reply) => {
+  bot.processUpdate(req.body);
+  reply.send({ ok: true });
+});
+
+// Health check endpoint (to prevent sleep)
+fastify.get('/healthz', (req, reply) => {
+  reply.send({ status: 'ok' });
+});
+
+// Start server
+fastify.listen({ port: process.env.PORT || 3000, host: '0.0.0.0' }, async (err) => {
+  if (err) {
+    console.error(err);
+    process.exit(1);
+  }
+
+  console.log('Server running...');
+
+  // Set webhook
+  try {
+    await bot.setWebHook(FULL_WEBHOOK_URL);
+    console.log("Webhook set to:", FULL_WEBHOOK_URL);
+  } catch (err) {
+    console.error("Webhook set failed:", err);
+  }
+});
+
 const ADMINS = process.env.ADMINS ? process.env.ADMINS.split(',').map(s => s.trim()).map(Number) : [];
 
 const DEFAULT_SEND_TIME = "08:00";
@@ -342,7 +371,7 @@ async function adminChannelsKeyboard() {
 }
 
 // ——— /start komandasi ———
-fastify.post(WEBHOOK_PATH, async (request, reply) => {
+
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
 
@@ -617,18 +646,3 @@ bot.onText(/\/settings/, async (msg) => {
     reply_markup: mainSettingsKeyboard(ADMINS.includes(chatId))
   });
 });
-    reply.code(200).send('OK');
-});
-
-// Serverni ishga tushiramiz
-const start = async () => {
-  try {
-    await fastify.listen({ port: 3000, host: '0.0.0.0' });
-    console.log(`Server http://localhost:3000 da ishlayapti`);
-  } catch (err) {
-    fastify.log.error(err);
-    process.exit(1);
-  }
-};
-
-start();
