@@ -5,6 +5,9 @@ const mongoose = require('mongoose');
 const cron = require('node-cron');
 const Canvas = require('canvas');
 const moment = require('moment-timezone');
+require('moment/locale/uz');
+const now = moment().locale('uz');
+const formattedDate = now.format("D-MMMM, YYYY");
 const fastify = Fastify({ logger: true });
 // ——— Sozlamalar ———
 
@@ -283,7 +286,7 @@ cron.schedule('* * * * *', async () => {
 
         try {
           const imgBuf = await makeQuoteImage(randomQuote, BOT_USERNAME || '');
-          await bot.sendPhoto(user.userId, imgBuf, { caption: randomQuote, parse_mode: 'HTML' });
+          await bot.sendPhoto(user.userId, imgBuf, { caption: `Bugun ${formattedDate}\n\n${randomQuote}`, parse_mode: 'HTML' });
           console.log(`Iqtibos yuborildi userId=${user.userId} vaqt=${user.sendTime} ${user.timezone}`);
         } catch (err) {
           console.error(`Xato userga iqtibos yuborishda userId=${user.userId}:`, err);
