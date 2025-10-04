@@ -1,5 +1,6 @@
 require('dotenv').config();
 const Fastify = require('fastify');
+const axios = require('axios');
 const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const cron = require('node-cron');
@@ -40,30 +41,38 @@ const FULL_WEBHOOK_URL = `${process.env.PUBLIC_URL}${WEBHOOK_PATH}`;
 
 // Webhook endpoint
 fastify.post(WEBHOOK_PATH, (req, reply) => {
-  bot.processUpdate(req.body);
+  // Bot update-ni qayta ishlashni shu yerda yozasiz
+  console.log('Update received:', req.body);
   reply.send({ ok: true });
 });
 
-// Health check endpoint (to prevent sleep)
+// Health check endpoint
 fastify.get('/healthz', (req, reply) => {
   reply.send({ status: 'ok' });
 });
 
-// Start server
-fastify.listen({ port: process.env.PORT || 3000, host: '0.0.0.0' }, async (err) => {
+// Serverni ishga tushirish va webhook o‘rnatish
+fastify.listen({ port: process.env.PORT || 3000, host: '0.0.0.0' }, async (err, address) => {
   if (err) {
-    console.error(err);
+    fastify.log.error(err);
     process.exit(1);
   }
 
-  console.log('Server running...');
+  fastify.log.info(`Server listening at ${address}`);
 
-  // Set webhook
   try {
-    await bot.setWebHook(FULL_WEBHOOK_URL);
-    console.log("Webhook set to:", FULL_WEBHOOK_URL);
-  } catch (err) {
-    console.error("Webhook set failed:", err);
+    // axios 1.12.2 da oddiy POST so‘rov shunday
+    const response = await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/setWebhook`, null, {
+      params: { url: FULL_WEBHOOK_URL }
+    });
+
+    if (response.data.ok) {
+      fastify.log.info('Webhook successfully set:', response.data);
+    } else {
+      fastify.log.error('Failed to set webhook:', response.data);
+    }
+  } catch (error) {
+    fastify.log.error('Error setting webhook:', error.message);
   }
 });
 
