@@ -6,8 +6,28 @@ const cron = require('node-cron');
 const Canvas = require('canvas');
 const moment = require('moment-timezone');
 require('moment/locale/uz');
-const now = moment().locale('uz');
-const formattedDate = now.format("D-MMMM, YYYY");
+function getFormattedDateByLang(lang) {
+  const now = moment().tz("Asia/Tashkent"); // yoki user.timezone
+  const latinMonths = [
+    'yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
+    'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'
+  ];
+
+  const day = now.date();
+  const monthIndex = now.month(); // 0-based
+  const year = now.year();
+
+  if (lang === 'uz') {
+    return `Bugun ${day}-${latinMonths[monthIndex]}, ${year}`;
+  }
+
+  if (lang === 'ru') {
+    return `Сегодня ${now.locale('ru').format("D MMMM, YYYY")}`;
+  }
+
+  return `Today ${now.locale('en').format("D MMMM, YYYY")}`;
+}
+
 const fastify = Fastify({ logger: true });
 // ——— Sozlamalar ———
 
@@ -286,7 +306,8 @@ cron.schedule('* * * * *', async () => {
 
         try {
           const imgBuf = await makeQuoteImage(randomQuote, BOT_USERNAME || '');
-          await bot.sendPhoto(user.userId, imgBuf, { caption: `Bugun ${formattedDate}\n\n${randomQuote}`, parse_mode: 'HTML' });
+          const formattedDate = getFormattedDateByLang(user.lang);
+          await bot.sendPhoto(user.userId, imgBuf, { caption: `${formattedDate}\n\n${randomQuote}`, parse_mode: 'HTML' });
           console.log(`Iqtibos yuborildi userId=${user.userId} vaqt=${user.sendTime} ${user.timezone}`);
         } catch (err) {
           console.error(`Xato userga iqtibos yuborishda userId=${user.userId}:`, err);
