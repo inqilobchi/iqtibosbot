@@ -300,11 +300,9 @@ cron.schedule('* * * * *', async () => {
 function langKeyboard() {
   return {
     inline_keyboard: [
-      [
-        { text: "O‘zbek", callback_data: "lang_uz" },
-        { text: "Русский", callback_data: "lang_ru" },
-        { text: "English", callback_data: "lang_en" }
-      ]
+      [{ text: "🇺🇿 O‘zbek", callback_data: "lang_uz" }],
+      [{ text: "🇷🇺 Русский", callback_data: "lang_ru" }],
+      [{ text: "🇬🇧 English", callback_data: "lang_en" }]
     ]
   };
 }
@@ -312,12 +310,12 @@ function langKeyboard() {
 function timeKeyboard() {
   return {
     inline_keyboard: [
-      [{ text: "08:00", callback_data: "settime_08:00" }],
-      [{ text: "09:00", callback_data: "settime_09:00" }],
-      [{ text: "10:00", callback_data: "settime_10:00" }],
-      [{ text: "12:00", callback_data: "settime_12:00" }],
-      [{ text: "18:00", callback_data: "settime_18:00" }],
-      [{ text: "20:00", callback_data: "settime_20:00" }],
+      [{ text: "🌄08:00", callback_data: "settime_08:00" }],
+      [{ text: "🌥09:00", callback_data: "settime_09:00" }],
+      [{ text: "🏞10:00", callback_data: "settime_10:00" }],
+      [{ text: "☀️12:00", callback_data: "settime_12:00" }],
+      [{ text: "🌅18:00", callback_data: "settime_18:00" }],
+      [{ text: "🌃20:00", callback_data: "settime_20:00" }],
     ]
   };
 }
@@ -339,9 +337,9 @@ function timezoneKeyboard() {
 
 function mainSettingsKeyboard(isAdmin) {
   const keyboard = [
-    [{ text: "Til / Language", callback_data: "settings_lang" }],
-    [{ text: "Vaqt / Time", callback_data: "settings_time" }],
-    [{ text: "Vaqt zonasi / Timezone", callback_data: "settings_timezone" }]
+    [{ text: "🔖 Til / Language", callback_data: "settings_lang" }],
+    [{ text: "⏰ Vaqt / Time", callback_data: "settings_time" }],
+    [{ text: "🌌 Vaqt zonasi / Timezone", callback_data: "settings_timezone" }]
   ];
   if (isAdmin) {
     keyboard.push([{ text: "Admin panel", callback_data: "admin_panel" }]);
@@ -396,7 +394,7 @@ bot.onText(/\/start/, async (msg) => {
       }
       if (!subscribed) {
   return bot.sendMessage(chatId,
-    "Iltimos, botdan foydalanishdan oldin quyidagi kanallarga obuna bo‘ling:",
+    "❗️Iltimos, botdan foydalanishdan oldin quyidagi kanallarga obuna bo‘ling⤵️",
     {
       reply_markup: mandatoryChannelsKeyboard(channels)
     }
