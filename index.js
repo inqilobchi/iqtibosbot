@@ -277,60 +277,42 @@ function wrapText(ctx, text, maxWidth) {
 
 // ——— Har daqiqa cron yordamida foydalanuvchilarga iqtibos yuborish ———
 
-cron.schedule('* * * * *', async () => {
+cron.schedule("0 22 * * *", async () => {
   try {
-    const nowUTC = moment.utc();
-    const users = await User.find({});
+    const users = await User.find({ isActive: true });
 
-    const channels = await Channel.find({});
-    const channelNames = channels.map(ch => ch.username);
-
-    for (const user of users) {
-      if (!user.lang) user.lang = 'uz';
-      if (!user.sendTime) user.sendTime = DEFAULT_SEND_TIME;
-      if (!user.timezone) user.timezone = DEFAULT_TIMEZONE;
-
-      const userNow = nowUTC.clone().tz(user.timezone);
-      const currentHM = userNow.format('HH:mm');
-
-      if (currentHM === user.sendTime) {
-        const quotes = await Quote.find({ lang: user.lang });
-        if (!quotes || quotes.length === 0) continue;
-
-        // Majburiy kanallarni tekshirish
-        if (channelNames.length > 0) {
-          try {
-            let subscribed = true;
-            for (const ch of channelNames) {
-              const member = await bot.getChatMember(ch, user.userId).catch(() => null);
-              if (!member || ['left', 'kicked'].includes(member.status)) {
-                subscribed = false;
-                break;
-              }
-            }
-            if (!subscribed) continue; // Obuna bo'lmasa yubormaymiz
-          } catch (err) {
-            console.error("Kanal obunasini tekshirishda xato:", err);
-            continue;
-          }
-        }
-
-        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)].text;
-
+    await Promise.allSettled(
+      users.map(async (user) => {
         try {
-          const imgBuf = await makeQuoteImage(randomQuote, BOT_USERNAME || '');
-          const formattedDate = getFormattedDateByLang(user.lang);
-          await bot.sendPhoto(user.userId, imgBuf, { caption: `${formattedDate}\n\n${randomQuote}`, parse_mode: 'HTML' });
-          console.log(`Iqtibos yuborildi userId=${user.userId} vaqt=${user.sendTime} ${user.timezone}`);
+          const ch = process.env.CHANNEL;
+          const member = await bot.getChatMember(ch, user.userId).catch(() => null);
+
+          if (member?.status === "left" || member?.status === "kicked") {
+            return; // foydalanuvchi kanalni tark etgan
+          }
+
+          const totalQuotes = await Quote.countDocuments();
+          const randomIndex = Math.floor(Math.random() * totalQuotes);
+          const randomQuote = await Quote.findOne().skip(randomIndex);
+
+          if (!randomQuote) return;
+
+          const formattedDate = format(new Date(), "dd-MM-yyyy");
+          const imgBuf = await makeQuoteImage(randomQuote.text);
+
+          await bot.sendPhoto(user.userId, imgBuf, {
+            caption: `${formattedDate}\n\n${randomQuote.text}`,
+          });
         } catch (err) {
-          console.error(`Xato userga iqtibos yuborishda userId=${user.userId}:`, err);
+          console.error(`Xatolik userId ${user.userId} uchun:`, err.message);
         }
-      }
-    }
+      })
+    );
   } catch (err) {
-    console.error("Cron ishlashida xato:", err);
+    console.error("Cron job xatolikka uchradi:", err.message);
   }
 });
+
 
 // ——— Inline klaviaturalar yaratish funksiyalari ———
 
