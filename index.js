@@ -41,9 +41,14 @@ const FULL_WEBHOOK_URL = `${process.env.PUBLIC_URL}${WEBHOOK_PATH}`;
 
 // Webhook endpoint
 fastify.post(WEBHOOK_PATH, (req, reply) => {
-  // Bot update-ni qayta ishlashni shu yerda yozasiz
-  console.log('Update received:', req.body);
-  reply.send({ ok: true });
+  try {
+    bot.processUpdate(req.body);  // Telegram update-larni botga uzatish juda muhim
+    console.log('Update processed:', req.body);
+    reply.sendStatus(200);        // Telegram API uchun 200 OK javob qaytarish kerak
+  } catch (error) {
+    console.error('Error processing update:', error);
+    reply.sendStatus(500);
+  }
 });
 
 // Health check endpoint
@@ -61,10 +66,9 @@ fastify.listen({ port: process.env.PORT || 3000, host: '0.0.0.0' }, async (err, 
   fastify.log.info(`Server listening at ${address}`);
 
   try {
-    // axios 1.12.2 da oddiy POST so‘rov shunday
-    const response = await axios.post(`https://api.telegram.org/bot${BOT_TOKEN}/setWebhook`, null, {
-      params: { url: FULL_WEBHOOK_URL }
-    });
+const response = await axios.post(`https://api.telegram.org/bot${token}/setWebhook`, null, {
+  params: { url: FULL_WEBHOOK_URL }
+});
 
     if (response.data.ok) {
       fastify.log.info('Webhook successfully set:', response.data);
