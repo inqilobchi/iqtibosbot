@@ -399,11 +399,16 @@ async function adminChannelsKeyboard() {
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
 
-  let user = await User.findOne({ userId: chatId });
-  if (!user) {
-    user = new User({ userId: chatId });
-    await user.save();
-  }
+try {
+  const user = await User.findOneAndUpdate(
+    { userId: chatId },
+    { $setOnInsert: { userId: chatId } },
+    { upsert: true, new: true }
+  );
+} catch (err) {
+  console.error(err);
+}
+
 
   const channels = await Channel.find({});
   const channelNames = channels.map(ch => ch.username);
