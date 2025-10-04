@@ -87,7 +87,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 // ——— Mongoose modellari ———
 
 const userSchema = new mongoose.Schema({
-  userId: { type: Number },
+  userId: { type: Number, unique: true },
   lang: { type: String, default: 'uz' },
   sendTime: { type: String, default: DEFAULT_SEND_TIME },
   timezone: { type: String, default: DEFAULT_TIMEZONE },
@@ -399,15 +399,11 @@ async function adminChannelsKeyboard() {
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
 
-try {
-  const user = await User.findOneAndUpdate(
-    { userId: chatId },
-    { $setOnInsert: { userId: chatId } },
-    { upsert: true, new: true }
-  );
-} catch (err) {
-  console.error(err);
-}
+const user = await User.findOneAndUpdate(
+  { userId: chatId },
+  { $setOnInsert: { userId: chatId, lang: 'uz', sendTime: DEFAULT_SEND_TIME, timezone: DEFAULT_TIMEZONE } },
+  { upsert: true, new: true }
+);
 
 
   const channels = await Channel.find({});
@@ -450,15 +446,12 @@ bot.on('callback_query', async (query) => {
   const chatId = query.message.chat.id;
   const data = query.data;
 
-try {
-  const user = await User.findOneAndUpdate(
-    { userId: chatId },
-    { $setOnInsert: { userId: chatId } },
-    { upsert: true, new: true }
-  );
-} catch (err) {
-  console.error(err);
-}
+const user = await User.findOneAndUpdate(
+  { userId: chatId },
+  { $setOnInsert: { userId: chatId, lang: 'uz', sendTime: DEFAULT_SEND_TIME, timezone: DEFAULT_TIMEZONE } },
+  { upsert: true, new: true }
+);
+
 
   // — Tilni tanlash
   if (data.startsWith("lang_")) {
