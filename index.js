@@ -87,7 +87,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 // ——— Mongoose modellari ———
 
 const userSchema = new mongoose.Schema({
-  userId: { type: Number, unique: true },
+  userId: { type: Number },
   lang: { type: String, default: 'uz' },
   sendTime: { type: String, default: DEFAULT_SEND_TIME },
   timezone: { type: String, default: DEFAULT_TIMEZONE },
