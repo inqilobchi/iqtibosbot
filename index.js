@@ -274,6 +274,13 @@ function wrapText(ctx, text, maxWidth) {
   if (current) lines.push(current);
   return lines;
 }
+async function batchSend(users, handler, batchSize = 50, delayMs = 2000) {
+  for (let i = 0; i < users.length; i += batchSize) {
+    const batch = users.slice(i, i + batchSize);
+    await Promise.allSettled(batch.map(handler));
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+  }
+}
 
 // ——— Har daqiqa cron yordamida foydalanuvchilarga iqtibos yuborish ———
 
@@ -281,37 +288,37 @@ cron.schedule("0 22 * * *", async () => {
   try {
     const users = await User.find({ isActive: true });
 
-    await Promise.allSettled(
-      users.map(async (user) => {
-        try {
-          const ch = process.env.CHANNEL;
-          const member = await bot.getChatMember(ch, user.userId).catch(() => null);
+    await batchSend(users, async (user) => {
+      try {
+        const ch = process.env.CHANNEL;
+        const member = await bot.getChatMember(ch, user.userId).catch(() => null);
 
-          if (member?.status === "left" || member?.status === "kicked") {
-            return; // foydalanuvchi kanalni tark etgan
-          }
-
-          const totalQuotes = await Quote.countDocuments();
-          const randomIndex = Math.floor(Math.random() * totalQuotes);
-          const randomQuote = await Quote.findOne().skip(randomIndex);
-
-          if (!randomQuote) return;
-
-          const formattedDate = format(new Date(), "dd-MM-yyyy");
-          const imgBuf = await makeQuoteImage(randomQuote.text);
-
-          await bot.sendPhoto(user.userId, imgBuf, {
-            caption: `${formattedDate}\n\n${randomQuote.text}`,
-          });
-        } catch (err) {
-          console.error(`Xatolik userId ${user.userId} uchun:`, err.message);
+        if (member?.status === "left" || member?.status === "kicked") {
+          return; // foydalanuvchi kanalni tark etgan
         }
-      })
-    );
+
+        const totalQuotes = await Quote.countDocuments({ lang: user.lang });
+        const randomIndex = Math.floor(Math.random() * totalQuotes);
+        const randomQuote = await Quote.findOne({ lang: user.lang }).skip(randomIndex);
+
+        if (!randomQuote) return;
+
+        const formattedDate = getFormattedDateByLang(user.lang);
+        const imgBuf = await makeQuoteImage(randomQuote.text, BOT_USERNAME);
+
+        await bot.sendPhoto(user.userId, imgBuf, {
+          caption: `${formattedDate}\n\n${randomQuote.text}`,
+        });
+      } catch (err) {
+        console.error(`Xatolik userId ${user.userId} uchun:`, err.message);
+      }
+    }, 50, 2000); // batch: 30ta, delay: 2s
+
   } catch (err) {
     console.error("Cron job xatolikka uchradi:", err.message);
   }
 });
+
 
 
 // ——— Inline klaviaturalar yaratish funksiyalari ———
