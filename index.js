@@ -355,8 +355,10 @@ function mainSettingsKeyboard(isAdmin) {
 function adminPanelKeyboard() {
   return {
     inline_keyboard: [
-      [{ text: "Iqtibos qo'shish", callback_data: "admin_add_quote" }],
-      [{ text: "Majburiy obuna kanallar", callback_data: "admin_channels" }]
+      [{ text: "📝 Iqtibos qo'shish", callback_data: "admin_add_quote" }],
+      [{ text: "🛎 Majburiy obuna kanallar", callback_data: "admin_channels" }],
+      [{ text: "📊 Statistika", callback_data: "admin_stats" }],
+      [{ text: "📢 Xabar yuborish", callback_data: "admin_broadcast" }]
     ]
   };
 }
@@ -527,6 +529,53 @@ bot.on('callback_query', async (query) => {
       reply_markup: keyboard
     });
   }
+if (data === "admin_stats") {
+  if (!ADMINS.includes(chatId)) {
+    return bot.answerCallbackQuery(query.id, { text: TEXT.not_admin[user.lang], show_alert: true });
+  }
+
+  const userCount = await User.countDocuments();
+  const users = await User.find({});
+  const quotes = await Quote.find({});
+
+  // Timezonelar statistikasi
+  const tzStats = {};
+  const timeStats = {};
+  for (let u of users) {
+    tzStats[u.timezone] = (tzStats[u.timezone] || 0) + 1;
+    timeStats[u.sendTime] = (timeStats[u.sendTime] || 0) + 1;
+  }
+
+  const tzLines = Object.entries(tzStats).map(([tz, count]) => `🕓 ${tz} - ${count} ta`).join('\n');
+  const timeLines = Object.entries(timeStats).map(([time, count]) => `⏰ ${time} - ${count} ta`).join('\n');
+
+  // Iqtiboslar statistikasi
+  const langStats = { uz: 0, ru: 0, en: 0 };
+  for (let q of quotes) {
+    langStats[q.lang] = (langStats[q.lang] || 0) + 1;
+  }
+
+  const quoteLines = `📚 Iqtiboslar:\n🇺🇿 uz - ${langStats.uz} ta\n🇷🇺 ru - ${langStats.ru} ta\n🇬🇧 en - ${langStats.en} ta`;
+
+  const statsText = `📊 Statistika:\n👥 Umumiy foydalanuvchilar: ${userCount} ta\n\n${tzLines}\n\n${timeLines}\n\n${quoteLines}`;
+
+  return bot.editMessageText(statsText, {
+    chat_id: chatId,
+    message_id: query.message.message_id,
+    reply_markup: adminPanelKeyboard()
+  });
+}
+  if (data === "admin_broadcast") {
+  if (!ADMINS.includes(chatId)) {
+    return bot.answerCallbackQuery(query.id, { text: TEXT.not_admin[user.lang], show_alert: true });
+  }
+
+  user.adminAction = { type: "broadcast" };
+  await user.save();
+
+  await bot.answerCallbackQuery(query.id);
+  return bot.sendMessage(chatId, "📢 Hammaga yuboriladigan matn, rasm yoki videoni yuboring:");
+}
 
   // — Kanal qo'shish bosqichi
   if (data === "admin_add_channel") {
@@ -627,6 +676,28 @@ if (action.type === "add_channel") {
   user.adminAction = null;
   await user.save();
   return bot.sendMessage(chatId, TEXT.channel_added[user.lang].replace("%s", chUsername));
+}
+if (action.type === "broadcast") {
+  user.adminAction = null;
+  await user.save();
+
+  const allUsers = await User.find({});
+  for (let u of allUsers) {
+    try {
+      if (msg.text) {
+        await bot.sendMessage(u.userId, msg.text);
+      } else if (msg.photo) {
+        const photoId = msg.photo[msg.photo.length - 1].file_id;
+        await bot.sendPhoto(u.userId, photoId, { caption: msg.caption || '' });
+      } else if (msg.video) {
+        await bot.sendVideo(u.userId, msg.video.file_id, { caption: msg.caption || '' });
+      }
+    } catch (e) {
+      console.error(`Yuborilmadi userId=${u.userId}:`, e.message);
+    }
+  }
+
+  return bot.sendMessage(chatId, "✅ Xabar barcha foydalanuvchilarga yuborildi.");
 }
 
   }
