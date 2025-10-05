@@ -34,7 +34,7 @@ const fastify = Fastify({ logger: true });
 
 
 const token = process.env.BOT_TOKEN;
-const bot = new TelegramBot(token);
+const bot = new TelegramBot(token, { webHook: true });
 
 const WEBHOOK_PATH = `/webhook/${token}`;
 const FULL_WEBHOOK_URL = `${process.env.PUBLIC_URL}${WEBHOOK_PATH}`;
@@ -44,7 +44,7 @@ fastify.post(WEBHOOK_PATH, (req, reply) => {
   try {
     bot.processUpdate(req.body);  // Telegram update-larni botga uzatish juda muhim
     console.log('Update processed:', req.body);
-    reply.sendStatus(200);        // Telegram API uchun 200 OK javob qaytarish kerak
+    reply.code(200).send();       // Telegram API uchun 200 OK javob qaytarish kerak
   } catch (error) {
     console.error('Error processing update:', error);
     reply.sendStatus(500);
