@@ -284,40 +284,56 @@ async function batchSend(users, handler, batchSize = 50, delayMs = 2000) {
 
 // ——— Har daqiqa cron yordamida foydalanuvchilarga iqtibos yuborish ———
 
-cron.schedule("0 22 * * *", async () => {
+cron.schedule("* * * * *", async () => {
+  const now = moment().tz("Asia/Tashkent");
+  const currentTime = now.format("HH:mm");
+
   try {
-    const users = await User.find({ isActive: true });
+    const users = await User.find({ sendTime: currentTime });
 
     await batchSend(users, async (user) => {
       try {
-        const ch = process.env.CHANNEL;
-        const member = await bot.getChatMember(ch, user.userId).catch(() => null);
+        const userNow = moment().tz(user.timezone || "Asia/Tashkent");
+        const userTime = userNow.format("HH:mm");
 
-        if (member?.status === "left" || member?.status === "kicked") {
-          return; // foydalanuvchi kanalni tark etgan
+        // Foydalanuvchi hozir o‘zining sozlangan vaqtida bo‘lishi kerak
+        if (userTime !== user.sendTime) return;
+
+        // Kanal obunasini tekshirish (majburiy bo‘lsa)
+        const ch = process.env.CHANNEL;
+        if (ch) {
+          const member = await bot.getChatMember(ch, user.userId).catch(() => null);
+          if (!member || ["left", "kicked"].includes(member.status)) {
+            return; // Obuna bo‘lmagan
+          }
         }
 
+        // Tasodifiy iqtibosni olish
         const totalQuotes = await Quote.countDocuments({ lang: user.lang });
+        if (totalQuotes === 0) return;
+
         const randomIndex = Math.floor(Math.random() * totalQuotes);
         const randomQuote = await Quote.findOne({ lang: user.lang }).skip(randomIndex);
-
         if (!randomQuote) return;
 
         const formattedDate = getFormattedDateByLang(user.lang);
         const imgBuf = await makeQuoteImage(randomQuote.text, BOT_USERNAME);
 
+        // Iqtibosni yuborish
         await bot.sendPhoto(user.userId, imgBuf, {
           caption: `${formattedDate}\n\n${randomQuote.text}`,
         });
+
       } catch (err) {
-        console.error(`Xatolik userId ${user.userId} uchun:`, err.message);
+        console.error(`❌ Xatolik foydalanuvchi (${user.userId}) uchun:`, err.message);
       }
-    }, 50, 2000); // batch: 30ta, delay: 2s
+    }, 50, 2000); // 50 ta batch, 2s delay
 
   } catch (err) {
-    console.error("Cron job xatolikka uchradi:", err.message);
+    console.error("❌ Cron job xatolikka uchradi:", err.message);
   }
 });
+
 
 
 
