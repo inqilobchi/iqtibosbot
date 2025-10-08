@@ -119,6 +119,12 @@ const quoteSchema = new mongoose.Schema({
   text: String
 });
 const Quote = mongoose.model('Quote', quoteSchema);
+const userQuoteSchema = new mongoose.Schema({
+  userId: { type: Number, required: true },
+  quoteId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quote', required: true },
+});
+
+const UserQuote = mongoose.model('UserQuote', userQuoteSchema);
 
 function mandatoryChannelsKeyboard(channels) {
   return {
@@ -309,21 +315,30 @@ cron.schedule("* * * * *", async () => {
         }
 
         // Tasodifiy iqtibosni olish
-        const totalQuotes = await Quote.countDocuments({ lang: user.lang });
-        if (totalQuotes === 0) return;
+        const sentQuoteIds = await UserQuote.find({ userId: user.userId }).distinct('quoteId');
 
-        const randomIndex = Math.floor(Math.random() * totalQuotes);
-        const randomQuote = await Quote.findOne({ lang: user.lang }).skip(randomIndex);
-        if (!randomQuote) return;
+        const nextQuote = await Quote.findOne({
+          lang: user.lang,
+          _id: { $nin: sentQuoteIds }  // hali yuborilmagan iqtibos
+        }).sort({ _id: 1 }); // tartib bilan
+
+        if (!nextQuote) {
+          // 🔁 Hammasi yuborilgan — istasangiz takrorlang yoki xabar bering
+          // return bot.sendMessage(user.userId, "🎉 Barcha iqtiboslar sizga yuborilgan!");
+          return; // hozircha to‘xtatamiz
+        }
 
         const formattedDate = getFormattedDateByLang(user.lang);
-        const imgBuf = await makeQuoteImage(randomQuote.text, BOT_USERNAME);
+        const imgBuf = await makeQuoteImage(nextQuote.text, BOT_USERNAME);
 
         // Iqtibosni yuborish
         await bot.sendPhoto(user.userId, imgBuf, {
-          caption: `${formattedDate}\n\n${randomQuote.text}`,
+          caption: `${formattedDate}\n\n${nextQuote.text}`,
         });
-
+        await new UserQuote({
+          userId: user.userId,
+          quoteId: nextQuote._id
+        }).save()
       } catch (err) {
         console.error(`❌ Xatolik foydalanuvchi (${user.userId}) uchun:`, err.message);
       }
